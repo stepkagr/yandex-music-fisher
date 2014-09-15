@@ -1,23 +1,22 @@
-function getTracksInfo(tracks, success) {
+var yandex = {};
+yandex.getTracksInfo = function (tracks, success) {
     var url = '/get/tracks.xml?tracks=' + tracks.join(',');
-    _ajax(url, function (json) {
+    this.ajax(url, function (json) {
         success(json);
     });
-}
-
-function getPlaylistInfo(user, kinds, success) {
+};
+yandex.getPlaylistInfo = function (user, kinds, success) {
     var url = '/get/playlist2.xml?kinds=' + kinds.join(',')
             + '&owner=' + user
             + '&r=' + new Date().getTime();
-    _ajax(url, function (json) {
+    this.ajax(url, function (json) {
         success(json);
     });
-}
-
-function getTrackURL(id, storageDir, success) {
+};
+yandex.getTrackURL = function (id, storageDir, success) {
     var url = '/xml/storage-proxy.xml?p=download-info/' + storageDir + '/2.mp3&nc='
             + new Date().getTime();
-    _ajax(url, function (xml) {
+    this.ajax(url, function (xml) {
         var regional = xml.getElementsByTagName('regional-host');
         var hosts = [];
         for (var i = 0; i < regional.length; i++) {
@@ -31,7 +30,7 @@ function getTrackURL(id, storageDir, success) {
             s: xml.getElementsByTagName('s')[0].innerHTML
         };
 
-        var hash = _hash(info.path.substr(1) + info.s);
+        var hash = yandex.hash(info.path.substr(1) + info.s);
         var urlBody = '/get-mp3/' + hash + '/' + info.ts + info.path
                 + '?track-id=' + id
                 + '&from=service-30-playlist-editorial'
@@ -41,23 +40,8 @@ function getTrackURL(id, storageDir, success) {
         });
         success(links);
     }, true);
-}
-
-function getPageInfo(url) {
-    var hash = url.split('/');
-    //["http:", "", "music.yandex.ru", "#!", "users", "furfurmusic", "playlists", "1000"]
-    var info = {
-        isYandexMusic: (hash[2] === 'music.yandex.ru'),
-        isPlaylist: (hash[4] === 'users' && hash[6] === 'playlists' && !!hash[7])
-    };
-    if (info.isPlaylist) {
-        info.user = hash[5];
-        info.playlist = hash[7];
-    }
-    return info;
-}
-
-function _ajax(url, success, isXML) {
+};
+yandex.ajax = function (url, success, isXML) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'https://music.yandex.ru' + url, true);
     xhr.timeout = 10000;
@@ -80,9 +64,8 @@ function _ajax(url, success, isXML) {
         console.error('AJAX timeout: ' + url);
     };
     xhr.send();
-}
-
-var _hash = function (s) {
+};
+yandex.hash = function (s) {
     var z = String.fromCharCode;
     function M(c, b) {
         return (c << b) | (c >>> (32 - b));
@@ -278,3 +261,83 @@ var _hash = function (s) {
     var i = C(Z) + C(Y) + C(X) + C(W);
     return i.toLowerCase();
 };
+
+var utils = {};
+utils.getUrlInfo = function (url) {
+    var hash = url.split('/');
+    //["http:", "", "music.yandex.ru", "#!", "users", "furfurmusic", "playlists", "1000"]
+    var info = {
+        isYandexMusic: (hash[2] === 'music.yandex.ru'),
+        isPlaylist: (hash[4] === 'users' && hash[6] === 'playlists' && !!hash[7])
+    };
+    if (info.isPlaylist) {
+        info.user = hash[5];
+        info.playlist = hash[7];
+    }
+    return info;
+};
+utils.clearPath = function (path) {
+    return path.replace(/[\\/:*?"<>|]/g, '_');
+};
+utils.download = function (track, dir) {
+    var savePath = this.clearPath(track.artist + ' - ' + track.title + '.mp3');
+    if (dir) {
+        savePath = this.clearPath(dir) + '/' + savePath;
+    }
+    yandex.getTrackURL(track.id, track.storage_dir, function (links) {
+        if (links.length) {
+            chrome.downloads.download({
+                url: links[0],
+                filename: savePath
+            });
+        } else {
+            console.error('Не удалось найти ссылки', track);
+        }
+    });
+};
+utils.downloadMultiple = function (tracks, dir) {
+    // todo: возобновление количества потоков при их потере
+    for (var i = 0; i < 4; i++) { // количество потоков загрузки
+        var newTrack = tracks.shift();
+        if (!newTrack) {
+            return;
+        }
+        this.download(newTrack, dir);
+    }
+    chrome.downloads.onChanged.addListener(function (downloadDelta) {
+        // todo: разобрать ситуацию, когда состояние не 'complete'
+        if (downloadDelta.state && downloadDelta.state.current === 'complete') {
+            chrome.downloads.erase({
+                id: downloadDelta.id
+            });
+            var newTrack = tracks.shift();
+            if (!newTrack) {
+                return;
+            }
+            utils.download(newTrack, dir);
+        }
+    });
+};
+
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+    if (changeInfo.status === 'loading') {
+        chrome.pageAction.hide(tabId);
+        var info = utils.getUrlInfo(tab.url);
+        if (!info.isYandexMusic) {
+            return;
+        } else if (info.isPlaylist) {
+            chrome.pageAction.show(tabId);
+        }
+    }
+});
+chrome.pageAction.onClicked.addListener(function (tab) {
+    var info = utils.getUrlInfo(tab.url);
+    if (info.isPlaylist) {
+        yandex.getPlaylistInfo(info.user, [info.playlist], function (json) {
+            var playlist = json.playlists[0];
+            yandex.getTracksInfo(playlist.tracks, function (json) {
+                utils.downloadMultiple(json.tracks, playlist.title);
+            });
+        });
+    }
+});
