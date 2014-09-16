@@ -1,14 +1,16 @@
 var yandex = {};
-yandex.getTrackInfo = function (track, album, success) {
+yandex.getPrefix = function () {
     var date = new Date();
     var month = date.getMonth() + 1;
     month = (month < 10) ? '0' + month : month;
     var day = date.getDate();
     day = (day < 10) ? '0' + day : day;
+    return 'facegen-' + date.getFullYear() + '-' + month + '-' + day + 'T00-00-00'
+};
+yandex.getTrackInfo = function (track, album, success) {
     var url = '/fragment/track/' + track
             + '/album/' + album
-            + '?prefix=facegen-' + date.getFullYear()
-            + '-' + month + '-' + day + 'T00-00-00';
+            + '?prefix=' + this.getPrefix();
     this.ajax(url, function (html) {
         var first = html.split('{')[1];
         var second = first.split('}')[0];
@@ -17,6 +19,30 @@ yandex.getTrackInfo = function (track, album, success) {
             success(json);
         } catch (e) {
             console.error('Не удалось распарсить строку', second);
+        }
+    });
+};
+
+/**
+ * 
+ * @param {int} albumId
+ * @param {function} success
+ * @returns {object} json {id: "2131970", title: "Голос", track_count: 17, tracks: Array[17]}
+ * 
+ */
+yandex.getAlbumInfo = function (albumId, success) {
+    var url = '/fragment/album/' + albumId
+            + '?prefix=' + this.getPrefix();
+    this.ajax(url, function (html) {
+        var frame = document.createElement('frame');
+        frame.innerHTML = html; // todo исключить загрузку картинок
+        var search = frame.getElementsByClassName('js-album');
+        var jsonStr = search[0].getAttribute('onclick').split('return ')[1];
+        try {
+            var json = JSON.parse(jsonStr.replace(/'/g, '"'));
+            success(json);
+        } catch (e) {
+            console.error('Не удалось распарсить строку', jsonStr);
         }
     });
 };
@@ -295,7 +321,9 @@ utils.getUrlInfo = function (url) {
         //["http:", "", "music.yandex.ru", "#!", "users", "furfurmusic", "playlists", "1000"]
         isPlaylist: (hash[4] === 'users' && hash[6] === 'playlists' && !!hash[7]),
         //["http:", "", "music.yandex.ru", "#!", "track", "15517073", "album", "1695028"]
-        isTrack: (hash[4] === 'track' && hash[6] === 'album' && !!hash[7])
+        isTrack: (hash[4] === 'track' && hash[6] === 'album' && !!hash[7]),
+        //["http:", "", "music.yandex.ru", "#!", "album", "2131970"]
+        isAlbum: (hash[4] === 'album' && !!hash[5])
     };
     if (info.isPlaylist) {
         info.user = hash[5];
@@ -303,6 +331,8 @@ utils.getUrlInfo = function (url) {
     } else if (info.isTrack) {
         info.track = hash[5];
         info.album = hash[7];
+    } else if (info.isAlbum) {
+        info.album = hash[5];
     }
     return info;
 };
@@ -356,26 +386,29 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
         var info = utils.getUrlInfo(tab.url);
         if (!info.isYandexMusic) {
             return;
-        } else if (info.isPlaylist || info.isTrack) {
+        } else if (info.isPlaylist || info.isTrack || info.isAlbum) {
             chrome.pageAction.show(tabId);
         }
     }
 });
 // todo: прелоадер после нажатия до начала скачивания
 chrome.pageAction.onClicked.addListener(function (tab) {
+    chrome.pageAction.hide(tab.id);
     var info = utils.getUrlInfo(tab.url);
     if (info.isPlaylist) {
         yandex.getPlaylistInfo(info.user, [info.playlist], function (json) {
             var playlist = json.playlists[0];
             yandex.getTracksInfo(playlist.tracks, function (json) {
                 utils.downloadMultiple(json.tracks, playlist.title);
-                chrome.pageAction.hide(tab.id);
             });
         });
     } else if (info.isTrack) {
         yandex.getTrackInfo(info.track, info.album, function (track) {
             utils.download(track);
-            chrome.pageAction.hide(tab.id);
+        });
+    } else if (info.isAlbum) {
+        yandex.getAlbumInfo(info.album, function (album) {
+            utils.downloadMultiple(album.tracks, album.title);
         });
     }
 });
