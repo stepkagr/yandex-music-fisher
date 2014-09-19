@@ -2,21 +2,18 @@
     "manifest_version": 2,
     "name": "Yandex Music Fisher",
     "description": "Скачивание музыки с Yandex Music",
-    "version": "0.0.4",
+    "version": "0.1.0",
     "permissions": [
         "tabs",
         "downloads",
+        "cookies",
         "https://music.yandex.ru/"
     ],
     "background": {
-        "scripts": ["js/background.js"],
+        "scripts": ["js/page_info.js", "js/utils.js", "js/yandex_api.js", "js/downloader.js", "js/background.js"],
         "persistent": true
     },
     "page_action": {
-        "default_icon": {
-            "19": "img/icon.png",
-            "38": "img/icon.png"
-        },
         "default_title": "Yandex Music Fisher"
     },
     "icons": {
@@ -24,5 +21,6 @@
         "32": "img/icon.png",
         "48": "img/icon.png",
         "128": "img/icon.png"
-    }
+    },
+    "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
 }
