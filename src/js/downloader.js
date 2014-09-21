@@ -14,6 +14,7 @@ downloader.download = function () {
     }
     if (track.error) {
         console.error('Ошибка: ' + track.error, track);
+        this.download();
         return;
     }
     this.activeThreadCount++;
@@ -32,6 +33,7 @@ downloader.download = function () {
             });
         } else {
             this.activeThreadCount--;
+            this.download();
             console.error('Не удалось найти ссылки', track);
         }
     });
