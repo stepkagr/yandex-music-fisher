@@ -1,29 +1,33 @@
+function checkTab(tab) {
+    chrome.pageAction.hide(tab.id);
+    pageInfo.update(tab.url);
+    if (!pageInfo.isYandexMusic) {
+        return;
+    } else if (pageInfo.isPlaylist) {
+        chrome.pageAction.setIcon({
+            tabId: tab.id,
+            path: 'img/green.png'
+        });
+        chrome.pageAction.show(tab.id);
+    } else if (pageInfo.isTrack) {
+        chrome.pageAction.setIcon({
+            tabId: tab.id,
+            path: 'img/blue.png'
+        });
+        chrome.pageAction.show(tab.id);
+    } else if (pageInfo.isAlbum) {
+        chrome.pageAction.setIcon({
+            tabId: tab.id,
+            path: 'img/yellow.png'
+        });
+        chrome.pageAction.show(tab.id);
+    }
+}
+
 // todo: предварительная загрузка страницы может не вызвать это событие
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     if (changeInfo.status === 'loading') {
-        chrome.pageAction.hide(tabId);
-        pageInfo.update(tab.url);
-        if (!pageInfo.isYandexMusic) {
-            return;
-        } else if (pageInfo.isPlaylist) {
-            chrome.pageAction.setIcon({
-                tabId: tabId,
-                path: 'img/green.png'
-            });
-            chrome.pageAction.show(tabId);
-        } else if (pageInfo.isTrack) {
-            chrome.pageAction.setIcon({
-                tabId: tabId,
-                path: 'img/blue.png'
-            });
-            chrome.pageAction.show(tabId);
-        } else if (pageInfo.isAlbum) {
-            chrome.pageAction.setIcon({
-                tabId: tabId,
-                path: 'img/yellow.png'
-            });
-            chrome.pageAction.show(tabId);
-        }
+        checkTab(tab);
     }
 });
 
@@ -80,4 +84,11 @@ chrome.runtime.onInstalled.addListener(function (details) {
     if (!localStorage.getItem('downloadThreadCount')) {
         localStorage.setItem('downloadThreadCount', 4);
     }
+    chrome.tabs.query({
+        url: '*://music.yandex.ru/*'
+    }, function (tabs) {
+        for (var i = 0; i < tabs.length; i++) {
+            checkTab(tabs[i]);
+        }
+    });
 });
