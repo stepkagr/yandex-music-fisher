@@ -1,13 +1,15 @@
 document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('downloadThreadCount').value = localStorage.getItem('downloadThreadCount');
+    var threadCount = localStorage.getItem('downloadThreadCount');
+    if (threadCount) {
+        document.getElementById('downloadThreadCount').value = threadCount;
+    }
 });
 
-document.getElementById('save').addEventListener('click', function () {
-    var downloadThreadCount = document.getElementById('downloadThreadCount').value;
-    localStorage.setItem('downloadThreadCount', downloadThreadCount);
-    var status = document.getElementById('status');
-    status.textContent = 'Настройки сохранены.';
-    setTimeout(function () {
-        status.textContent = '';
-    }, 750);
+document.getElementById('downloadThreadCount').addEventListener('change', function (e) {
+    if (e.target.value > 10) {
+        e.target.value = 10;
+    } else if (e.target.value < 1) {
+        e.target.value = 1;
+    }
+    localStorage.setItem('downloadThreadCount', e.target.value);
 });
