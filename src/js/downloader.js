@@ -1,20 +1,28 @@
-var downloader = {};
+var downloader = {
+    queue: [],
+    activeThreadCount: 0
+};
 
 downloader.clearPath = function (path) {
     return path.replace(/[\\/:*?"<>|]/g, '_'); // Windows path illegals
 };
 
-downloader.download = function (track, dir) {
+downloader.download = function () {
+    var track = this.queue.shift();
+    if (!track) {
+        return;
+    }
     if (track.error) {
         console.error('Ошибка: ' + track.error, track);
         return;
     }
+    this.activeThreadCount++;
     var artists = track.artists.map(function (artist) {
         return artist.name;
     }).join(', ');
     var savePath = this.clearPath(artists + ' - ' + track.title + '.mp3');
-    if (dir) {
-        savePath = this.clearPath(dir) + '/' + savePath;
+    if (track.saveDir) {
+        savePath = this.clearPath(track.saveDir) + '/' + savePath;
     }
     yandex.getTrackLinks(track.storageDir, function (links) {
         if (links.length) {
@@ -23,33 +31,17 @@ downloader.download = function (track, dir) {
                 filename: savePath
             });
         } else {
+            this.activeThreadCount--;
             console.error('Не удалось найти ссылки', track);
         }
     });
 };
 
-downloader.downloadMultiple = function (tracks, dir) {
+downloader.add = function (tracks) {
     // todo: сделать страницу с обзором закачек
-    // todo: если идёт множественная закачка и добавляется новая - поставить последнюю в очередь
-    chrome.downloads.onChanged.addListener(function (downloadDelta) {
-        // todo: разобрать ситуацию, когда состояние не 'complete'
-        if (downloadDelta.state && downloadDelta.state.current === 'complete') {
-            chrome.downloads.erase({
-                id: downloadDelta.id
-            });
-            var newTrack = tracks.shift();
-            if (!newTrack) {
-                return;
-            }
-            downloader.download(newTrack, dir);
-        }
-    });
-    // todo: возобновление количества потоков при их потере (следим за ошибками)
-    for (var i = 0; i < 4; i++) { // количество потоков загрузки
-        var newTrack = tracks.shift();
-        if (!newTrack) {
-            return;
-        }
-        this.download(newTrack, dir);
+    this.queue = this.queue.concat(tracks);
+    var newThreadCount = localStorage.getItem('downloadThreadCount') - this.activeThreadCount;
+    for (var i = 0; i < newThreadCount; i++) {
+        this.download();
     }
 };

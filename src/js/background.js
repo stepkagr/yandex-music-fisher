@@ -32,11 +32,14 @@ chrome.pageAction.onClicked.addListener(function (tab) {
     pageInfo.update(tab.url);
     if (pageInfo.isPlaylist) {
         yandex.getPlaylistInfo(pageInfo.username, pageInfo.playlistId, function (playlist) {
-            downloader.downloadMultiple(playlist.tracks, playlist.title);
+            playlist.tracks.forEach(function (elem) {
+                elem.saveDir = playlist.title;
+            });
+            downloader.add(playlist.tracks);
         });
     } else if (pageInfo.isTrack) {
         yandex.getTrackInfo(pageInfo.trackId, function (track) {
-            downloader.downloadMultiple([track]);
+            downloader.add([track]);
         });
     } else if (pageInfo.isAlbum) {
         yandex.getAlbumInfo(pageInfo.albumId, function (album) {
@@ -44,8 +47,37 @@ chrome.pageAction.onClicked.addListener(function (tab) {
             for (var i = 0; i < album.volumes.length; i++) {
                 tracks = tracks.concat(album.volumes[i]);
             }
-            var dirName = album.artists[0].name + ' - ' + album.title;
-            downloader.downloadMultiple(tracks, dirName);
+            tracks.forEach(function (elem) {
+                elem.saveDir = album.artists[0].name + ' - ' + album.title;
+            });
+            downloader.add(tracks);
         });
+    }
+});
+
+chrome.downloads.onChanged.addListener(function (delta) {
+    if (delta.state) {
+        switch (delta.state.current) {
+            case 'complete':
+            case 'interrupted':
+                chrome.downloads.erase({
+                    id: delta.id
+                });
+                downloader.activeThreadCount--;
+                downloader.download();
+                break;
+        }
+    } else if (delta.paused) {
+        if (delta.paused.current) {
+            console.info('Приостановленна загрузка', delta);
+        } else {
+            console.info('Возобновленна загрузка', delta);
+        }
+    }
+});
+
+chrome.runtime.onInstalled.addListener(function (details) {
+    if (!localStorage.getItem('downloadThreadCount')) {
+        localStorage.setItem('downloadThreadCount', 4);
     }
 });

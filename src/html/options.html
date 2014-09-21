@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Yandex Music Fisher</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <style>
+            abbr {
+                cursor: help;
+                border-bottom: 1px dotted #777;
+            }
+        </style>
+    </head>
+    <body>
+        <abbr title="Чем больше скорость доступа к сети Интеренет, тем больше следует ставить потоков">Количество потоков загрузки</abbr>
+        <input type="number" id="downloadThreadCount" min="1" max="8" value="4">
+
+        <div id="status"></div>
+        <button id="save">Сохранить</button>
+
+        <script src="../js/options.js"></script>
+    </body>
+</html>
