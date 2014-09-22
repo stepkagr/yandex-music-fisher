@@ -14,10 +14,16 @@ chrome.pageAction.onClicked.addListener(function (tab) {
                 elem.saveDir = playlist.title;
             });
             downloader.add(playlist.tracks);
+        }, function () {
+            // ajax transport fail
+            utils.addIconToTab(tab);
         });
     } else if (pageInfo.isTrack) {
         yandex.getTrack(pageInfo.trackId, function (track) {
             downloader.add([track]);
+        }, function () {
+            // ajax transport fail
+            utils.addIconToTab(tab);
         });
     } else if (pageInfo.isAlbum) {
         yandex.getAlbum(pageInfo.albumId, function (album) {
@@ -29,6 +35,9 @@ chrome.pageAction.onClicked.addListener(function (tab) {
                 elem.saveDir = album.artists[0].name + ' - ' + album.title;
             });
             downloader.add(tracks);
+        }, function () {
+            // ajax transport fail
+            utils.addIconToTab(tab);
         });
     }
 });

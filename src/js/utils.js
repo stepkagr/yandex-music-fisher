@@ -1,6 +1,6 @@
 var utils = {};
 
-utils.ajax = function (url, success) {
+utils.ajax = function (url, success, fail) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'https://music.yandex.ru' + url, true);
     xhr.timeout = 10000;
@@ -17,13 +17,16 @@ utils.ajax = function (url, success) {
             }
         } else {
             console.error('HTTP error code: ' + xhr.status);
+            fail();
         }
     };
     xhr.onerror = function () {
         console.error('AJAX error: ' + url);
+        fail();
     };
     xhr.ontimeout = function () {
         console.error('AJAX timeout: ' + url);
+        fail();
     };
     xhr.send();
 };

@@ -32,10 +32,14 @@ downloader.download = function () {
                 filename: savePath
             });
         } else {
-            this.activeThreadCount--;
-            this.download();
+            downloader.activeThreadCount--;
+            downloader.download();
             console.error('Не удалось найти ссылки', track);
         }
+    }, function () {
+        // ajax transport fail или json не распарсили
+        downloader.activeThreadCount--;
+        downloader.download();
     });
 };
 

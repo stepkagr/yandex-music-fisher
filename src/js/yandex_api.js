@@ -1,6 +1,6 @@
 var yandex = {};
 
-yandex.getTrackLinks = function (storageDir, success) {
+yandex.getTrackLinks = function (storageDir, success, fail) {
     var url = '/api/v1.4/jsonp.xml?action=getTrackSrc&p=download-info/'
             + storageDir + '/2.mp3&r=' + Math.random();
     utils.ajax(url, function (jsonp) {
@@ -11,6 +11,7 @@ yandex.getTrackLinks = function (storageDir, success) {
             var json = eval(jsonStr)[0];
         } catch (e) {
             console.error('Не удалось распарсить строку', jsonp);
+            fail();
             return;
         }
         var hosts = json['regional-hosts'];
@@ -22,30 +23,30 @@ yandex.getTrackLinks = function (storageDir, success) {
             return 'http://' + host + urlBody;
         });
         success(links);
-    });
+    }, fail);
 };
 
-yandex.getTrack = function (trackId, success) {
+yandex.getTrack = function (trackId, success, fail) {
     var url = '/handlers/track.jsx?track=' + trackId
             + '&r=' + Math.random();
     utils.ajax(url, function (json) {
         success(json);
-    });
+    }, fail);
 };
 
-yandex.getAlbum = function (albumId, success) {
+yandex.getAlbum = function (albumId, success, fail) {
     var url = '/handlers/album.jsx?album=' + albumId
             + '&r=' + Math.random();
     utils.ajax(url, function (json) {
         success(json);
-    });
+    }, fail);
 };
 
-yandex.getPlaylist = function (username, playlistId, success) {
+yandex.getPlaylist = function (username, playlistId, success, fail) {
     var url = '/handlers/playlist.jsx?owner=' + username
             + '&kinds=' + playlistId
             + '&r=' + Math.random();
     utils.ajax(url, function (json) {
         success(json.playlist);
-    });
+    }, fail);
 };
