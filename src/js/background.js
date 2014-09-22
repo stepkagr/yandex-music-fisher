@@ -7,35 +7,21 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
 
 chrome.pageAction.onClicked.addListener(function (tab) {
     chrome.pageAction.hide(tab.id);
-    var pageInfo = utils.getUrlInfo(tab.url);
-    if (pageInfo.isPlaylist) {
-        yandex.getPlaylist(pageInfo.username, pageInfo.playlistId, function (playlist) {
-            playlist.tracks.forEach(function (elem) {
-                elem.saveDir = playlist.title;
-            });
-            downloader.add(playlist.tracks);
-        }, function () {
+    var page = utils.getUrlInfo(tab.url);
+    if (page.isPlaylist) {
+        yandex.getPlaylist(page.username, page.playlistId, downloader.downloadPlaylist, function () {
             // ajax transport fail
             utils.addIconToTab(tab);
         });
-    } else if (pageInfo.isTrack) {
-        yandex.getTrack(pageInfo.trackId, function (track) {
+    } else if (page.isTrack) {
+        yandex.getTrack(page.trackId, function (track) {
             downloader.add([track]);
         }, function () {
             // ajax transport fail
             utils.addIconToTab(tab);
         });
-    } else if (pageInfo.isAlbum) {
-        yandex.getAlbum(pageInfo.albumId, function (album) {
-            var tracks = [];
-            for (var i = 0; i < album.volumes.length; i++) {
-                tracks = tracks.concat(album.volumes[i]);
-            }
-            tracks.forEach(function (elem) {
-                elem.saveDir = album.artists[0].name + ' - ' + album.title;
-            });
-            downloader.add(tracks);
-        }, function () {
+    } else if (page.isAlbum) {
+        yandex.getAlbum(page.albumId, downloader.downloadAlbum, function () {
             // ajax transport fail
             utils.addIconToTab(tab);
         });

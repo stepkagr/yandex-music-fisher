@@ -55,22 +55,22 @@ utils.getUrlInfo = function (url) {
 
 utils.addIconToTab = function (tab) {
     chrome.pageAction.hide(tab.id);
-    var pageInfo = utils.getUrlInfo(tab.url);
-    if (!pageInfo.isYandexMusic) {
+    var page = utils.getUrlInfo(tab.url);
+    if (!page.isYandexMusic) {
         return;
-    } else if (pageInfo.isPlaylist) {
+    } else if (page.isPlaylist) {
         chrome.pageAction.setIcon({
             tabId: tab.id,
             path: 'img/green.png'
         });
         chrome.pageAction.show(tab.id);
-    } else if (pageInfo.isTrack) {
+    } else if (page.isTrack) {
         chrome.pageAction.setIcon({
             tabId: tab.id,
             path: 'img/blue.png'
         });
         chrome.pageAction.show(tab.id);
-    } else if (pageInfo.isAlbum) {
+    } else if (page.isAlbum) {
         chrome.pageAction.setIcon({
             tabId: tab.id,
             path: 'img/yellow.png'

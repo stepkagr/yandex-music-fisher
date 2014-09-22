@@ -18,12 +18,15 @@ downloader.download = function () {
         return;
     }
     this.activeThreadCount++;
+    if (track.version) {
+        track.title += ' (' + track.version + ')';
+    }
     var artists = track.artists.map(function (artist) {
         return artist.name;
     }).join(', ');
     var savePath = this.clearPath(artists + ' - ' + track.title + '.mp3');
     if (track.saveDir) {
-        savePath = this.clearPath(track.saveDir) + '/' + savePath;
+        savePath = track.saveDir + '/' + savePath;
     }
     yandex.getTrackLinks(track.storageDir, function (links) {
         if (links.length) {
@@ -50,4 +53,33 @@ downloader.add = function (tracks) {
     for (var i = 0; i < newThreadCount; i++) {
         this.download();
     }
+};
+
+downloader.downloadAlbum = function (album) {
+    // todo: сохранение обложки в папку альбома
+    var tracks = [];
+    var artists = album.artists.map(function (artist) {
+        return artist.name;
+    }).join(', ');
+    if (album.volumes.length > 1) {
+        for (var i = 0; i < album.volumes.length; i++) {
+            album.volumes[i].forEach(function (track) {
+                track.saveDir = downloader.clearPath(artists + ' - ' + album.title) + '/CD' + (i + 1);
+            });
+            tracks = tracks.concat(album.volumes[i]);
+        }
+    } else {
+        album.volumes[0].forEach(function (track) {
+            track.saveDir = downloader.clearPath(artists + ' - ' + album.title);
+        });
+        tracks = album.volumes[0];
+    }
+    this.add(tracks);
+};
+
+downloader.downloadPlaylist = function (playlist) {
+    playlist.tracks.forEach(function (track) {
+        track.saveDir = downloader.clearPath(playlist.title);
+    });
+    this.add(playlist.tracks);
 };
