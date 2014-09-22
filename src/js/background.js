@@ -43,24 +43,32 @@ chrome.pageAction.onClicked.addListener(function (tab) {
 });
 
 chrome.downloads.onChanged.addListener(function (delta) {
-    if (delta.state) {
-        switch (delta.state.current) {
-            case 'complete':
-            case 'interrupted':
-                chrome.downloads.erase({
-                    id: delta.id
-                });
-                downloader.activeThreadCount--;
-                downloader.download();
-                break;
+    chrome.downloads.search({
+        id: delta.id
+    }, function (downloads) {
+        var name = downloads[0].byExtensionName;
+        if (!name || name !== 'Yandex Music Fisher') {
+            return;
         }
-    } else if (delta.paused) {
-        if (delta.paused.current) {
-            console.info('Приостановленна загрузка', delta);
-        } else {
-            console.info('Возобновленна загрузка', delta);
+        if (delta.state) {
+            switch (delta.state.current) {
+                case 'complete':
+                case 'interrupted':
+                    chrome.downloads.erase({
+                        id: delta.id
+                    });
+                    downloader.activeThreadCount--;
+                    downloader.download();
+                    break;
+            }
+        } else if (delta.paused) {
+            if (delta.paused.current) {
+                console.info('Приостановленна загрузка', delta);
+            } else {
+                console.info('Возобновленна загрузка', delta);
+            }
         }
-    }
+    });
 });
 
 chrome.runtime.onInstalled.addListener(function (details) {
