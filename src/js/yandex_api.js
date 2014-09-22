@@ -3,7 +3,7 @@ var yandex = {};
 yandex.getTrackLinks = function (storageDir, success) {
     var url = '/api/v1.4/jsonp.xml?action=getTrackSrc&p=download-info/'
             + storageDir + '/2.mp3&r=' + Math.random();
-    utils.ajaxWrapper(url, function (jsonp) {
+    utils.ajax(url, function (jsonp) {
         // чистим jsonp до json
         var jsonStr = jsonp.replace(/^[^[]+/, '').replace(/\);$/, '');
         try {
@@ -25,47 +25,27 @@ yandex.getTrackLinks = function (storageDir, success) {
     });
 };
 
-yandex.getTrackInfo = function (trackId, success) {
+yandex.getTrack = function (trackId, success) {
     var url = '/handlers/track.jsx?track=' + trackId
             + '&r=' + Math.random();
-    utils.ajaxWrapper(url, function (json) {
+    utils.ajax(url, function (json) {
         success(json);
     });
 };
 
-yandex.getAlbumInfo = function (albumId, success) {
+yandex.getAlbum = function (albumId, success) {
     var url = '/handlers/album.jsx?album=' + albumId
             + '&r=' + Math.random();
-    utils.ajaxWrapper(url, function (json) {
+    utils.ajax(url, function (json) {
         success(json);
     });
 };
 
-yandex.getPlaylistInfo = function (username, playlistId, success) {
+yandex.getPlaylist = function (username, playlistId, success) {
     var url = '/handlers/playlist.jsx?owner=' + username
             + '&kinds=' + playlistId
             + '&r=' + Math.random();
-    utils.ajaxWrapper(url, function (json) {
+    utils.ajax(url, function (json) {
         success(json.playlist);
     });
-};
-
-yandex.setNewSiteVersion = function (success) {
-    chrome.cookies.set({
-        url: 'https://music.yandex.ru',
-        name: 'makeyourownkindofmusic',
-        value: 'optin',
-        path: '/',
-        expirationDate: new Date().getTime() / 1000 + 365 * 86400
-    }, success);
-};
-
-yandex.setOldSiteVersion = function (success) {
-    chrome.cookies.set({
-        url: 'https://music.yandex.ru',
-        name: 'makeyourownkindofmusic',
-        value: 'optout',
-        path: '/',
-        expirationDate: new Date().getTime() / 1000 + 365 * 86400
-    }, success);
 };

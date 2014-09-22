@@ -1,23 +1,10 @@
 var utils = {};
 
-utils.ajaxWrapper = function (url, success) {
-    if (pageInfo.isOldYandexMusic) {
-        yandex.setNewSiteVersion(function () {
-            utils.ajax(url, success);
-        });
-    } else {
-        this.ajax(url, success);
-    }
-};
-
 utils.ajax = function (url, success) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'https://music.yandex.ru' + url, true);
     xhr.timeout = 10000;
     xhr.onload = function () {
-        if (pageInfo.isOldYandexMusic) {
-            yandex.setOldSiteVersion();
-        }
         if (xhr.status === 200) {
             if (xhr.responseXML) {
                 success(xhr.responseXML); // xml
@@ -39,6 +26,54 @@ utils.ajax = function (url, success) {
         console.error('AJAX timeout: ' + url);
     };
     xhr.send();
+};
+
+utils.getUrlInfo = function (url) {
+    var info = {};
+    var parts = url.replace(/\?.*/, '').split('/');
+    //["http:", "", "music.yandex.ru", "users", "furfurmusic", "playlists", "1000"]
+    info.isYandexMusic = (parts[2] === 'music.yandex.ru');
+    if (!info.isYandexMusic) {
+        return info;
+    }
+    info.isPlaylist = (parts[3] === 'users' && parts[5] === 'playlists' && !!parts[6]);
+    info.isTrack = (parts[3] === 'album' && parts[5] === 'track' && !!parts[6]);
+    info.isAlbum = (parts[3] === 'album' && !!parts[4]);
+    if (info.isPlaylist) {
+        info.username = parts[4];
+        info.playlistId = parts[6];
+    } else if (info.isTrack) {
+        info.trackId = parts[6];
+    } else if (info.isAlbum) {
+        info.albumId = parts[4];
+    }
+    return info;
+};
+
+utils.addIconToTab = function (tab) {
+    chrome.pageAction.hide(tab.id);
+    var pageInfo = utils.getUrlInfo(tab.url);
+    if (!pageInfo.isYandexMusic) {
+        return;
+    } else if (pageInfo.isPlaylist) {
+        chrome.pageAction.setIcon({
+            tabId: tab.id,
+            path: 'img/green.png'
+        });
+        chrome.pageAction.show(tab.id);
+    } else if (pageInfo.isTrack) {
+        chrome.pageAction.setIcon({
+            tabId: tab.id,
+            path: 'img/blue.png'
+        });
+        chrome.pageAction.show(tab.id);
+    } else if (pageInfo.isAlbum) {
+        chrome.pageAction.setIcon({
+            tabId: tab.id,
+            path: 'img/yellow.png'
+        });
+        chrome.pageAction.show(tab.id);
+    }
 };
 
 // источник: http://jquerymy.com/js/md5.js

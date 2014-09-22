@@ -1,16 +1,15 @@
 {
     "manifest_version": 2,
     "name": "Yandex Music Fisher",
-    "description": "Скачивание музыки с Yandex Music",
-    "version": "0.1.2",
+    "description": "Скачивание музыки с сервиса Яндекс.Музыка",
+    "version": "0.1.3",
     "permissions": [
         "tabs",
         "downloads",
-        "cookies",
         "https://music.yandex.ru/"
     ],
     "background": {
-        "scripts": ["js/page_info.js", "js/utils.js", "js/yandex_api.js", "js/downloader.js", "js/background.js"],
+        "scripts": ["js/utils.js", "js/yandex_api.js", "js/downloader.js", "js/background.js"],
         "persistent": true
     },
     "options_page": "html/options.html",

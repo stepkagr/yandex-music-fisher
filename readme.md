@@ -4,8 +4,6 @@
 
 ![Yandex Music Fisher](/screen.png)
 
-Поддерживаются обе ([Новая](https://help.yandex.ru/music/new-music/new-music.xml) и старая) версии Яндекс музыки.
-
 ### Подключение
 
 Перенесите папку [src](/src/) на страницу расширений.
