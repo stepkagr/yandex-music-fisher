@@ -66,6 +66,9 @@ chrome.runtime.onInstalled.addListener(function (details) {
     if (!localStorage.getItem('downloadThreadCount')) {
         localStorage.setItem('downloadThreadCount', 4);
     }
+    if (!localStorage.getItem('albumCoverSize')) {
+        localStorage.setItem('albumCoverSize', '460x460');
+    }
     chrome.tabs.query({
         url: '*://music.yandex.ru/*'
     }, function (tabs) {

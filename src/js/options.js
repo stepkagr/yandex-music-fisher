@@ -3,6 +3,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (threadCount) {
         document.getElementById('downloadThreadCount').value = threadCount;
     }
+    var coverSize = localStorage.getItem('albumCoverSize');
+    if (coverSize) {
+        document.getElementById('albumCoverSize').value = coverSize;
+    }
 });
 
 document.getElementById('downloadThreadCount').addEventListener('change', function (e) {
@@ -14,7 +18,12 @@ document.getElementById('downloadThreadCount').addEventListener('change', functi
     localStorage.setItem('downloadThreadCount', e.target.value);
 });
 
-document.getElementById('btn-log').addEventListener('click', function () {
+document.getElementById('albumCoverSize').addEventListener('change', function (e) {
+    localStorage.setItem('albumCoverSize', e.target.value);
+});
+
+document.getElementById('btn-log').addEventListener('click', function (e) {
+    e.preventDefault();
     chrome.runtime.getBackgroundPage(function (backgroundPage) {
         backgroundPage.log.download();
     });

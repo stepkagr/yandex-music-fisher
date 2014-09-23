@@ -60,25 +60,29 @@ downloader.add = function (tracks) {
 };
 
 downloader.downloadAlbum = function (album) {
-    // todo: сохранение обложки в папку альбома
     var tracks = [];
     var artists = album.artists.map(function (artist) {
         return artist.name;
     }).join(', ');
+    var saveDir = downloader.clearPath(artists + ' - ' + album.title);
     if (album.volumes.length > 1) {
         for (var i = 0; i < album.volumes.length; i++) {
             album.volumes[i].forEach(function (track) {
-                track.saveDir = downloader.clearPath(artists + ' - ' + album.title) + '/CD' + (i + 1);
+                track.saveDir = saveDir + '/CD' + (i + 1);
             });
             tracks = tracks.concat(album.volumes[i]);
         }
     } else {
         album.volumes[0].forEach(function (track) {
-            track.saveDir = downloader.clearPath(artists + ' - ' + album.title);
+            track.saveDir = saveDir;
         });
         tracks = album.volumes[0];
     }
     downloader.add(tracks);
+    chrome.downloads.download({
+        url: 'https://' + album.coverUri.replace('%%', localStorage.getItem('albumCoverSize')),
+        filename: saveDir + '/cover.jpg'
+    });
 };
 
 downloader.downloadPlaylist = function (playlist) {
