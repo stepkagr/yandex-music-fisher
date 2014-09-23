@@ -10,7 +10,9 @@ yandex.getTrackLinks = function (storageDir, success, fail) {
             // json кривой, поэтому извлекаем через eval
             var json = eval(jsonStr)[0];
         } catch (e) {
-            console.error('Не удалось распарсить строку', jsonp);
+            var message = 'Не удалось распарсить строку' + jsonp;
+            console.error(message);
+            log.addMessage(message);
             fail();
             return;
         }

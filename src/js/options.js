@@ -13,3 +13,9 @@ document.getElementById('downloadThreadCount').addEventListener('change', functi
     }
     localStorage.setItem('downloadThreadCount', e.target.value);
 });
+
+document.getElementById('btn-log').addEventListener('click', function () {
+    chrome.runtime.getBackgroundPage(function (backgroundPage) {
+        backgroundPage.log.download();
+    });
+});

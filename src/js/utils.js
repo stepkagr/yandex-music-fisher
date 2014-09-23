@@ -9,23 +9,31 @@ utils.ajax = function (url, success, fail) {
             if (xhr.responseXML) {
                 success(xhr.responseXML); // xml
             } else {
+                var reply;
                 try {
-                    success(JSON.parse(xhr.responseText)); // json
+                    reply = JSON.parse(xhr.responseText); // json
                 } catch (e) {
-                    success(xhr.responseText); // plain text
+                    reply = xhr.responseText; // plain text
                 }
+                success(reply);
             }
         } else {
-            console.error('HTTP error code: ' + xhr.status);
+            var message = 'HTTP error code: ' + xhr.status;
+            console.error(message);
+            log.addMessage(message);
             fail();
         }
     };
     xhr.onerror = function () {
-        console.error('AJAX error: ' + url);
+        var message = 'AJAX error: ' + url;
+        console.error(message);
+        log.addMessage(message);
         fail();
     };
     xhr.ontimeout = function () {
-        console.error('AJAX timeout: ' + url);
+        var message = 'AJAX timeout: ' + url;
+        console.error(message);
+        log.addMessage(message);
         fail();
     };
     xhr.send();

@@ -32,8 +32,9 @@ chrome.downloads.onChanged.addListener(function (delta) {
     chrome.downloads.search({
         id: delta.id
     }, function (downloads) {
+        var parts = downloads[0].filename.split('.');
         var name = downloads[0].byExtensionName;
-        if (!name || name !== 'Yandex Music Fisher') {
+        if (!name || name !== 'Yandex Music Fisher' || parts[parts.length - 1] !== 'mp3') {
             return;
         }
         if (delta.state) {

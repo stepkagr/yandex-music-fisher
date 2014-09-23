@@ -13,7 +13,9 @@ downloader.download = function () {
         return;
     }
     if (track.error) {
-        console.error('Ошибка: ' + track.error, track);
+        var message = 'Ошибка: ' + track.error;
+        console.error(message, track);
+        log.addMessage(message);
         downloader.download();
         return;
     }
@@ -35,9 +37,11 @@ downloader.download = function () {
                 filename: savePath
             });
         } else {
+            var message = 'Не удалось найти ссылки';
+            console.error(message, track);
+            log.addMessage(message);
             downloader.activeThreadCount--;
             downloader.download();
-            console.error('Не удалось найти ссылки', track);
         }
     }, function () {
         // ajax transport fail или json не распарсили
