@@ -29,17 +29,13 @@ yandex.getTrackLinks = function (storageDir, success, fail) {
 yandex.getTrack = function (trackId, success, fail) {
     var url = '/handlers/track.jsx?track=' + trackId
             + '&r=' + Math.random();
-    utils.ajax(url, function (json) {
-        success(json);
-    }, fail);
+    utils.ajax(url, success, fail);
 };
 
 yandex.getAlbum = function (albumId, success, fail) {
     var url = '/handlers/album.jsx?album=' + albumId
             + '&r=' + Math.random();
-    utils.ajax(url, function (json) {
-        success(json);
-    }, fail);
+    utils.ajax(url, success, fail);
 };
 
 yandex.getPlaylist = function (username, playlistId, success, fail) {

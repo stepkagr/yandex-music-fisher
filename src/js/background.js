@@ -40,10 +40,13 @@ chrome.downloads.onChanged.addListener(function (delta) {
             switch (delta.state.current) {
                 case 'complete':
                 case 'interrupted':
+                    downloader.activeThreadCount--;
+                    if (!downloader.queue.length && !downloader.activeThreadCount) {
+                        chrome.downloads.show(delta.id);
+                    }
                     chrome.downloads.erase({
                         id: delta.id
                     });
-                    downloader.activeThreadCount--;
                     downloader.download();
                     break;
             }
