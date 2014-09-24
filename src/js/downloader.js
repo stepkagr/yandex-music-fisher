@@ -34,7 +34,9 @@ downloader.download = function () {
         if (links.length) {
             chrome.downloads.download({
                 url: links[0],
-                filename: savePath
+                filename: savePath,
+                saveAs: false,
+                conflictAction: 'prompt'
             });
         } else {
             var message = 'Не удалось найти ссылки';
@@ -81,7 +83,9 @@ downloader.downloadAlbum = function (album) {
     downloader.add(tracks);
     chrome.downloads.download({
         url: 'https://' + album.coverUri.replace('%%', localStorage.getItem('albumCoverSize')),
-        filename: saveDir + '/cover.jpg'
+        filename: saveDir + '/cover.jpg',
+        saveAs: false,
+        conflictAction: 'prompt'
     });
 };
 
