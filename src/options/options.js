@@ -25,6 +25,8 @@ document.getElementById('albumCoverSize').addEventListener('change', function (e
 document.getElementById('btn-log').addEventListener('click', function (e) {
     e.preventDefault();
     chrome.runtime.getBackgroundPage(function (backgroundPage) {
-        backgroundPage.log.download();
+        chrome.tabs.create({
+            url: 'data:text/plain;charset=utf-8,' + encodeURIComponent(backgroundPage.log.string)
+        });
     });
 });

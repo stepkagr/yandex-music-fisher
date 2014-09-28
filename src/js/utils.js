@@ -1,3 +1,7 @@
+Number.prototype.round = function (places) {
+    return +(Math.round(this + 'e+' + places) + 'e-' + places);
+};
+
 var utils = {};
 
 utils.ajax = function (url, success, fail) {
@@ -84,6 +88,18 @@ utils.addIconToTab = function (tab) {
             path: 'img/yellow.png'
         });
         chrome.pageAction.show(tab.id);
+    }
+};
+
+utils.bytesToStr = function (bytes) {
+    if (bytes < 1024) {
+        return bytes + ' Б';
+    } else if (bytes < 1024 * 1024) {
+        return (bytes / 1024).round(2) + ' КиБ';
+    } else if (bytes < 1024 * 1024 * 1024) {
+        return (bytes / (1024 * 1024)).round(2) + ' МиБ';
+    } else {
+        return (bytes / (1024 * 1024 * 1024)).round(2) + ' ГиБ';
     }
 };
 

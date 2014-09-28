@@ -14,9 +14,7 @@ chrome.pageAction.onClicked.addListener(function (tab) {
             utils.addIconToTab(tab);
         });
     } else if (page.isTrack) {
-        yandex.getTrack(page.trackId, function (track) {
-            downloader.add([track]);
-        }, function () {
+        yandex.getTrack(page.trackId, downloader.downloadTrack, function () {
             // ajax transport fail
             utils.addIconToTab(tab);
         });
@@ -32,32 +30,11 @@ chrome.downloads.onChanged.addListener(function (delta) {
     chrome.downloads.search({
         id: delta.id
     }, function (downloads) {
-        var parts = downloads[0].filename.split('.');
         var name = downloads[0].byExtensionName;
-        if (!name || name !== 'Yandex Music Fisher' || parts[parts.length - 1] !== 'mp3') {
+        if (!name || name !== 'Yandex Music Fisher') {
             return;
         }
-        if (delta.state) {
-            switch (delta.state.current) {
-                case 'complete':
-                case 'interrupted':
-                    downloader.activeThreadCount--;
-                    if (!downloader.queue.length && !downloader.activeThreadCount) {
-                        chrome.downloads.show(delta.id);
-                    }
-                    chrome.downloads.erase({
-                        id: delta.id
-                    });
-                    downloader.download();
-                    break;
-            }
-        } else if (delta.paused) {
-            if (delta.paused.current) {
-                console.info('Приостановленна загрузка', delta);
-            } else {
-                console.info('Возобновленна загрузка', delta);
-            }
-        }
+        downloader.onChange(delta);
     });
 });
 
@@ -76,4 +53,11 @@ chrome.runtime.onInstalled.addListener(function (details) {
             utils.addIconToTab(tabs[i]);
         }
     });
+});
+
+chrome.notifications.onClicked.addListener(function (notificationId) {
+    console.log('clicked: ' + notificationId);
+//    chrome.notifications.clear(notificationId, function (wasCleared) {
+//        console.log('cleared: ' + wasCleared);
+//    });
 });

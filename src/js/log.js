@@ -7,7 +7,6 @@ log.addMessage = function (msg) {
 };
 
 log.download = function () {
-    log.addMessage(new Date());
     chrome.downloads.download({
         url: 'data:text/plain;charset=utf-8,' + encodeURIComponent(log.string),
         filename: 'log.txt'

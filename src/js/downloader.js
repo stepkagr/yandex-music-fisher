@@ -1,5 +1,7 @@
 var downloader = {
     queue: [],
+    downloads: [],
+    notifications: [],
     activeThreadCount: 0
 };
 
@@ -8,6 +10,7 @@ downloader.clearPath = function (path) {
 };
 
 downloader.getPrefix = function (i, max) {
+    // сделать рекурсивную функцию
     var prefix = '';
     max = max.toString();
     switch (max.length) {
@@ -18,74 +21,120 @@ downloader.getPrefix = function (i, max) {
             prefix = (i < 10) ? '00' + i : ((i < 100) ? '0' + i : i);
             break;
         case 4:
-            // надеюсь 9999 хватит
             prefix = (i < 10) ? '000' + i : ((i < 100) ? '00' + i : ((i < 1000) ? '0' + i : i));
             break;
         default:
             prefix = i;
     }
-    return prefix + ' - ';
+    return prefix;
 };
 
 downloader.download = function () {
-    var track = downloader.queue.shift();
-    if (!track) {
+    var entity = downloader.queue.shift();
+    if (!entity) {
         return;
     }
-    if (track.error) {
-        var message = 'Ошибка: ' + track.error;
-        console.error(message, track);
-        log.addMessage(message);
-        downloader.download();
-        return;
-    }
-    downloader.activeThreadCount++;
-    var artists = track.artists.map(function (artist) {
-        return artist.name;
-    }).join(', ');
-    if (track.version) {
-        track.title += ' (' + track.version + ')';
-    }
-    var savePath = downloader.clearPath(artists + ' - ' + track.title + '.mp3');
-    if (track.namePrefix) {
-        savePath = track.namePrefix + savePath;
-    }
-    if (track.saveDir) {
-        savePath = track.saveDir + '/' + savePath;
-    }
-    yandex.getTrackLinks(track.storageDir, function (links) {
-        if (links.length) {
-            chrome.downloads.download({
-                url: links[0],
-                filename: savePath,
-                saveAs: false,
-                conflictAction: 'prompt'
+    switch (entity.type) {
+        case 'track':
+        case 'album_track':
+        case 'playlist_track':
+            if (entity.cargo.error) {
+                var message = 'Ошибка: ' + entity.cargo.error;
+                console.error(message, entity);
+                log.addMessage(message);
+                downloader.download();
+                return;
+            }
+            downloader.activeThreadCount++;
+            var artists = entity.cargo.artists.map(function (artist) {
+                return artist.name;
+            }).join(', ');
+            if (entity.cargo.version) {
+                entity.cargo.title += ' (' + entity.cargo.version + ')';
+            }
+            var savePath = downloader.clearPath(artists + ' - ' + entity.cargo.title + '.mp3');
+            if (entity.options) {
+                if (entity.options.namePrefix) {
+                    savePath = entity.options.namePrefix + ' ' + savePath;
+                }
+                if (entity.options.saveDir) {
+                    savePath = entity.options.saveDir + '/' + savePath;
+                }
+            }
+            yandex.getTrackLinks(entity.cargo.storageDir, function (links) {
+                if (links.length) {
+                    chrome.downloads.download({
+                        url: links[0],
+                        filename: savePath,
+                        saveAs: false
+                    }, function (downloadId) {
+                        downloader.downloads[downloadId] = entity;
+                    });
+                } else {
+                    // todo оповещение об ошибке, возможность попробывать снова
+                    var message = 'Не удалось найти ссылки';
+                    console.error(message, entity);
+                    log.addMessage(message);
+                    downloader.activeThreadCount--;
+                    downloader.download();
+                }
+            }, function () {
+                // todo оповещение об ошибке, возможность попробывать снова
+                // ajax transport fail или json не распарсили
+                downloader.activeThreadCount--;
+                downloader.download();
             });
-        } else {
-            var message = 'Не удалось найти ссылки';
-            console.error(message, track);
+            break;
+        case 'cover':
+            chrome.downloads.download({
+                url: entity.cargo.url,
+                filename: entity.cargo.filename,
+                saveAs: false
+            }, function (downloadId) {
+                downloader.downloads[downloadId] = entity;
+            });
+            break;
+        default:
+            var message = 'Неизвестный тип загрузки: ' + entity.type;
+            console.error(message);
             log.addMessage(message);
-            downloader.activeThreadCount--;
-            downloader.download();
-        }
-    }, function () {
-        // ajax transport fail или json не распарсили
-        downloader.activeThreadCount--;
-        downloader.download();
-    });
+    }
 };
 
-downloader.add = function (tracks) {
-    // todo: сделать страницу с обзором закачек
-    downloader.queue = downloader.queue.concat(tracks);
+downloader.add = function (type, cargo, options) {
+    downloader.queue.push({
+        type: type,
+        cargo: cargo,
+        options: options
+    });
     var newThreadCount = localStorage.getItem('downloadThreadCount') - downloader.activeThreadCount;
     for (var i = 0; i < newThreadCount; i++) {
         downloader.download();
     }
 };
 
+downloader.downloadTrack = function (track) {
+    var notificationId = 'track#' + track.id;
+    var artists = track.artists.map(function (artist) {
+        return artist.name;
+    }).join(', ');
+
+    downloader.add('track', track, {
+        notificationId: notificationId
+    });
+
+    chrome.notifications.create(notificationId, {
+        type: 'basic',
+        iconUrl: 'https://' + track.albums[0].coverUri.replace('%%', '100x100'),
+        title: 'Загрузка (' + utils.bytesToStr(track.fileSize) + ')',
+        message: artists + ' - ' + track.title,
+        contextMessage: 'Трек'
+    }, function (notificationId) {
+    });
+};
+
 downloader.downloadAlbum = function (album) {
-    var tracks = [];
+    var notificationId = 'album#' + album.id;
     var artists = album.artists.map(function (artist) {
         return artist.name;
     }).join(', ');
@@ -93,34 +142,121 @@ downloader.downloadAlbum = function (album) {
         album.title += ' (' + album.version + ')';
     }
     var saveDir = downloader.clearPath(artists + ' - ' + album.title);
+
+    chrome.notifications.create(notificationId, {
+        type: 'progress',
+        iconUrl: 'https://' + album.coverUri.replace('%%', '100x100'),
+        title: 'Загрузка (0 из ' + album.trackCount + ')',
+        message: saveDir,
+        contextMessage: 'Альбом',
+        progress: 0
+    }, function (notificationId) {
+        downloader.notifications[notificationId] = {
+            trackCount: 0,
+            totalTrackCount: album.trackCount
+        };
+    });
+
+    downloader.add('cover', {
+        url: 'https://' + album.coverUri.replace('%%', localStorage.getItem('albumCoverSize')),
+        filename: saveDir + '/cover.jpg'
+    });
+
     if (album.volumes.length > 1) {
         for (var i = 0; i < album.volumes.length; i++) {
-            album.volumes[i].forEach(function (track, j) {
-                track.saveDir = saveDir + '/CD' + (i + 1);
-                track.namePrefix = downloader.getPrefix(j + 1, album.volumes[i].length);
-            });
-            tracks = tracks.concat(album.volumes[i]);
+            for (var j = 0; j < album.volumes[i].length; j++) {
+                downloader.add('album_track', album.volumes[i][j], {
+                    saveDir: saveDir + '/CD' + (i + 1),
+                    namePrefix: downloader.getPrefix(j + 1, album.volumes[i].length),
+                    notificationId: notificationId
+                });
+            }
         }
     } else {
-        album.volumes[0].forEach(function (track, i) {
-            track.saveDir = saveDir;
-            track.namePrefix = downloader.getPrefix(i + 1, album.volumes[0].length);
-        });
-        tracks = album.volumes[0];
+        for (var i = 0; i < album.volumes[0].length; i++) {
+            downloader.add('album_track', album.volumes[0][i], {
+                saveDir: saveDir,
+                namePrefix: downloader.getPrefix(i + 1, album.volumes[0].length),
+                notificationId: notificationId
+            });
+        }
     }
-    downloader.add(tracks);
-    chrome.downloads.download({
-        url: 'https://' + album.coverUri.replace('%%', localStorage.getItem('albumCoverSize')),
-        filename: saveDir + '/cover.jpg',
-        saveAs: false,
-        conflictAction: 'prompt'
-    });
 };
 
 downloader.downloadPlaylist = function (playlist) {
-    playlist.tracks.forEach(function (track, i) {
-        track.saveDir = downloader.clearPath(playlist.title);
-        track.namePrefix = downloader.getPrefix(i + 1, playlist.tracks.length);
+    var notificationId = 'playlist#' + playlist.owner.login + '#' + playlist.kind;
+    var saveDir = downloader.clearPath(playlist.title);
+
+    chrome.notifications.create(notificationId, {
+        type: 'progress',
+        iconUrl: 'https://' + playlist.cover.uri.replace('%%', '100x100'),
+        title: 'Загрузка (0 из ' + playlist.tracks.length + ')',
+        message: saveDir,
+        contextMessage: 'Плейлист',
+        progress: 0
+    }, function (notificationId) {
+        downloader.notifications[notificationId] = {
+            trackCount: 0,
+            totalTrackCount: playlist.tracks.length
+        };
     });
-    downloader.add(playlist.tracks);
+
+    for (var i = 0; i < playlist.tracks.length; i++) {
+        downloader.add('playlist_track', playlist.tracks[i], {
+            saveDir: saveDir,
+            namePrefix: downloader.getPrefix(i + 1, playlist.tracks.length),
+            notificationId: notificationId
+        });
+    }
+};
+
+downloader.onChange = function (delta) {
+    var entity = downloader.downloads[delta.id];
+    if (!entity || !entity.type) {
+        var message = 'Загруженного файла нет в downloader.downloads';
+        console.error(message, delta);
+        log.addMessage(message);
+        return;
+    }
+    if (delta.state) {
+        switch (entity.type) {
+            // todo: раздилить state на complete и error
+            case 'track':
+                chrome.notifications.update(entity.options.notificationId, {
+                    title: 'Загрузка завершена!',
+                }, function (wasUpdated) {
+                });
+                break;
+            case 'album_track':
+            case 'playlist_track':
+                var nId = entity.options.notificationId;
+                downloader.notifications[nId].trackCount++;
+                var counter = downloader.notifications[nId];
+                if (counter.trackCount === counter.totalTrackCount) {
+                    chrome.notifications.update(nId, {
+                        title: 'Загрузка завершена!',
+                        progress: 100
+                    }, function (wasUpdated) {
+                    });
+                } else {
+                    var progress = Math.round(counter.trackCount / counter.totalTrackCount * 100);
+                    chrome.notifications.update(nId, {
+                        title: 'Загрузка (' + counter.trackCount + ' из ' + counter.totalTrackCount + ')',
+                        progress: progress
+                    }, function (wasUpdated) {
+                    });
+                }
+                break;
+            case 'cover':
+                break;
+        }
+        downloader.activeThreadCount--;
+//        if (!downloader.queue.length && !downloader.activeThreadCount) {
+//            chrome.downloads.show(delta.id);
+//        }
+        chrome.downloads.erase({
+            id: delta.id
+        });
+        downloader.download();
+    }
 };
