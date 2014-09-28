@@ -81,11 +81,15 @@ downloader.download = function () {
             }, function () {
                 // todo оповещение об ошибке, возможность попробывать снова
                 // ajax transport fail или json не распарсили
+                var message = 'Ошибка во время получения URL трека';
+                console.error(message, entity);
+                log.addMessage(message);
                 downloader.activeThreadCount--;
                 downloader.download();
             });
             break;
         case 'cover':
+            downloader.activeThreadCount++;
             chrome.downloads.download({
                 url: entity.cargo.url,
                 filename: entity.cargo.filename,
@@ -126,9 +130,9 @@ downloader.downloadTrack = function (track) {
     chrome.notifications.create(notificationId, {
         type: 'basic',
         iconUrl: 'https://' + track.albums[0].coverUri.replace('%%', '100x100'),
-        title: 'Загрузка (' + utils.bytesToStr(track.fileSize) + ')',
+        title: 'Загрузка...',
         message: artists + ' - ' + track.title,
-        contextMessage: 'Трек'
+        contextMessage: 'Трек (' + utils.bytesToStr(track.fileSize) + ' - ' + utils.durationToStr(track.durationMs) + ')'
     }, function (notificationId) {
     });
 };
@@ -142,21 +146,10 @@ downloader.downloadAlbum = function (album) {
         album.title += ' (' + album.version + ')';
     }
     var saveDir = downloader.clearPath(artists + ' - ' + album.title);
+    var totalSize = 0;
+    var totalDuration = 0;
 
-    chrome.notifications.create(notificationId, {
-        type: 'progress',
-        iconUrl: 'https://' + album.coverUri.replace('%%', '100x100'),
-        title: 'Загрузка (0 из ' + album.trackCount + ')',
-        message: saveDir,
-        contextMessage: 'Альбом',
-        progress: 0
-    }, function (notificationId) {
-        downloader.notifications[notificationId] = {
-            trackCount: 0,
-            totalTrackCount: album.trackCount
-        };
-    });
-
+    // todo: после этого создаются лишние потоки загрузки
     downloader.add('cover', {
         url: 'https://' + album.coverUri.replace('%%', localStorage.getItem('albumCoverSize')),
         filename: saveDir + '/cover.jpg'
@@ -165,7 +158,10 @@ downloader.downloadAlbum = function (album) {
     if (album.volumes.length > 1) {
         for (var i = 0; i < album.volumes.length; i++) {
             for (var j = 0; j < album.volumes[i].length; j++) {
-                downloader.add('album_track', album.volumes[i][j], {
+                var track = album.volumes[i][j];
+                totalSize += track.fileSize;
+                totalDuration += track.durationMs;
+                downloader.add('album_track', track, {
                     saveDir: saveDir + '/CD' + (i + 1),
                     namePrefix: downloader.getPrefix(j + 1, album.volumes[i].length),
                     notificationId: notificationId
@@ -174,25 +170,55 @@ downloader.downloadAlbum = function (album) {
         }
     } else {
         for (var i = 0; i < album.volumes[0].length; i++) {
-            downloader.add('album_track', album.volumes[0][i], {
+            var track = album.volumes[0][i];
+            totalSize += track.fileSize;
+            totalDuration += track.durationMs;
+            downloader.add('album_track', track, {
                 saveDir: saveDir,
                 namePrefix: downloader.getPrefix(i + 1, album.volumes[0].length),
                 notificationId: notificationId
             });
         }
     }
+
+    chrome.notifications.create(notificationId, {
+        type: 'progress',
+        iconUrl: 'https://' + album.coverUri.replace('%%', '100x100'),
+        title: 'Загрузка (0 из ' + album.trackCount + ')...',
+        message: saveDir,
+        contextMessage: 'Альбом (' + utils.bytesToStr(totalSize) + ' - ' + utils.durationToStr(totalDuration) + ')',
+        progress: 0
+    }, function (notificationId) {
+        downloader.notifications[notificationId] = {
+            trackCount: 0,
+            totalTrackCount: album.trackCount
+        };
+    });
 };
 
 downloader.downloadPlaylist = function (playlist) {
     var notificationId = 'playlist#' + playlist.owner.login + '#' + playlist.kind;
     var saveDir = downloader.clearPath(playlist.title);
+    var totalSize = 0;
+    var totalDuration = 0;
+
+    for (var i = 0; i < playlist.tracks.length; i++) {
+        var track = playlist.tracks[i];
+        totalSize += track.fileSize;
+        totalDuration += track.durationMs;
+        downloader.add('playlist_track', track, {
+            saveDir: saveDir,
+            namePrefix: downloader.getPrefix(i + 1, playlist.tracks.length),
+            notificationId: notificationId
+        });
+    }
 
     chrome.notifications.create(notificationId, {
         type: 'progress',
         iconUrl: 'https://' + playlist.cover.uri.replace('%%', '100x100'),
-        title: 'Загрузка (0 из ' + playlist.tracks.length + ')',
+        title: 'Загрузка (0 из ' + playlist.tracks.length + ')...',
         message: saveDir,
-        contextMessage: 'Плейлист',
+        contextMessage: 'Плейлист (' + utils.bytesToStr(totalSize) + ' - ' + utils.durationToStr(totalDuration) + ')',
         progress: 0
     }, function (notificationId) {
         downloader.notifications[notificationId] = {
@@ -200,14 +226,6 @@ downloader.downloadPlaylist = function (playlist) {
             totalTrackCount: playlist.tracks.length
         };
     });
-
-    for (var i = 0; i < playlist.tracks.length; i++) {
-        downloader.add('playlist_track', playlist.tracks[i], {
-            saveDir: saveDir,
-            namePrefix: downloader.getPrefix(i + 1, playlist.tracks.length),
-            notificationId: notificationId
-        });
-    }
 };
 
 downloader.onChange = function (delta) {
@@ -223,7 +241,7 @@ downloader.onChange = function (delta) {
             // todo: раздилить state на complete и error
             case 'track':
                 chrome.notifications.update(entity.options.notificationId, {
-                    title: 'Загрузка завершена!',
+                    title: 'Загрузка завершена'
                 }, function (wasUpdated) {
                 });
                 break;
@@ -234,14 +252,14 @@ downloader.onChange = function (delta) {
                 var counter = downloader.notifications[nId];
                 if (counter.trackCount === counter.totalTrackCount) {
                     chrome.notifications.update(nId, {
-                        title: 'Загрузка завершена!',
-                        progress: 100
+                        type: 'basic',
+                        title: 'Загрузка завершена'
                     }, function (wasUpdated) {
                     });
                 } else {
                     var progress = Math.round(counter.trackCount / counter.totalTrackCount * 100);
                     chrome.notifications.update(nId, {
-                        title: 'Загрузка (' + counter.trackCount + ' из ' + counter.totalTrackCount + ')',
+                        title: 'Загрузка (' + counter.trackCount + ' из ' + counter.totalTrackCount + ')...',
                         progress: progress
                     }, function (wasUpdated) {
                     });

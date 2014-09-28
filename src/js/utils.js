@@ -103,6 +103,19 @@ utils.bytesToStr = function (bytes) {
     }
 };
 
+utils.leadZero = function (val) {
+    return (val < 10) ? '0' + val : '' + val;
+};
+
+utils.durationToStr = function (duration) {
+    var seconds = Math.floor(duration / 1000);
+    var minutes = Math.floor(seconds / 60);
+    seconds -= minutes * 60;
+    var hours = Math.floor(minutes / 60);
+    minutes -= hours * 60;
+    return hours + ':' + utils.leadZero(minutes) + ':' + utils.leadZero(seconds);
+};
+
 // источник: http://jquerymy.com/js/md5.js
 utils.md5 = (function () {
     function e(e, t) {
